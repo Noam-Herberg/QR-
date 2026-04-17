@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link to QR</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f5efe4;
+            --panel: #fffdf8;
+            --ink: #1a1a1a;
+            --accent: #0f766e;
+            --accent-dark: #115e59;
+            --line: #d6cfc1;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Georgia, "Times New Roman", serif;
+            background:
+                radial-gradient(circle at top left, rgba(15, 118, 110, 0.14), transparent 28%),
+                linear-gradient(180deg, #f8f2e8 0%, var(--bg) 100%);
+            color: var(--ink);
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .shell {
+            width: min(680px, 100%);
+            margin: 0 auto;
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 14px;
+        }
+
+        .nav-link {
+            color: var(--accent);
+            text-decoration: none;
+            font-size: 0.98rem;
+        }
+
+        .nav-link:hover {
+            color: var(--accent-dark);
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            margin: 0 0 12px;
+            font-size: clamp(2rem, 4vw, 3rem);
+            line-height: 1;
+        }
+
+        p {
+            margin: 0 0 24px;
+            font-size: 1rem;
+        }
+
+        form {
+            display: grid;
+            gap: 14px;
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 4px 0;
+            font-size: 0.98rem;
+        }
+
+        .toggle-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+        }
+
+        input[type="url"],
+        input[type="text"] {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            font: inherit;
+            font-size: 1rem;
+            background: #fff;
+        }
+
+        .utm-fields {
+            display: grid;
+            gap: 12px;
+            padding: 16px;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.7);
+        }
+
+        .utm-fields[hidden] {
+            display: none;
+        }
+
+        .field-group {
+            display: grid;
+            gap: 6px;
+        }
+
+        .field-group label {
+            font-size: 0.94rem;
+        }
+
+        .hint {
+            margin: 0;
+            font-size: 0.92rem;
+            color: #4b5563;
+        }
+
+        button,
+        .download {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: fit-content;
+            min-width: 160px;
+            padding: 12px 18px;
+            border: 0;
+            border-radius: 999px;
+            background: var(--accent);
+            color: #fff;
+            text-decoration: none;
+            font: inherit;
+            cursor: pointer;
+            transition: background 160ms ease, transform 160ms ease;
+        }
+
+        button:hover,
+        .download:hover {
+            background: var(--accent-dark);
+            transform: translateY(-1px);
+        }
+
+        .error {
+            color: #9f1239;
+            margin-top: 8px;
+        }
+
+        .result {
+            margin-top: 22px;
+            padding-top: 18px;
+            border-top: 1px solid var(--line);
+            display: grid;
+            gap: 12px;
+            justify-items: start;
+        }
+
+        .qr-frame {
+            background: #fff;
+            padding: 14px;
+            border-radius: 18px;
+            border: 1px solid var(--line);
+        }
+
+        .qr-frame img {
+            display: block;
+            width: min(280px, 100%);
+            height: auto;
+        }
+
+        .link {
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <div class="topbar">
+            <a class="nav-link" href="{{ url_for('analytics') }}">View Analytics</a>
+        </div>
+
+        <main class="card">
+            <h1>Link to QR</h1>
+            <p>Paste a link below to generate a direct QR code or switch on UTM tracking to create a tracked-link QR code.</p>
+
+            <form method="post">
+                <input
+                    type="text"
+                    name="url"
+                    placeholder="https://example.com"
+                    value="{{ url }}"
+                    required
+                >
+                <label class="toggle-row" for="utm_enabled">
+                    <input
+                        type="checkbox"
+                        id="utm_enabled"
+                        name="utm_enabled"
+                        {% if utm_enabled %}checked{% endif %}
+                    >
+                    Enable UTM tracking
+                </label>
+
+                <div class="utm-fields" id="utm-fields" {% if not utm_enabled %}hidden{% endif %}>
+                    <p class="hint">Add tracking fields to generate a tracked version of the link before creating the QR code.</p>
+
+                    <div class="field-group">
+                        <label for="utm_source">UTM Source</label>
+                        <input
+                            type="text"
+                            id="utm_source"
+                            name="utm_source"
+                            value="{{ utm_source }}"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label for="utm_medium">UTM Medium</label>
+                        <input
+                            type="text"
+                            id="utm_medium"
+                            name="utm_medium"
+                            value="{{ utm_medium }}"
+                        >
+                    </div>
+
+                    <div class="field-group">
+                        <label for="utm_campaign">UTM Campaign</label>
+                        <input
+                            type="text"
+                            id="utm_campaign"
+                            name="utm_campaign"
+                            placeholder="spring-launch"
+                            value="{{ utm_campaign }}"
+                        >
+                    </div>
+                </div>
+
+                <button type="submit">Generate QR Code</button>
+            </form>
+
+            {% if error %}
+                <p class="error">{{ error }}</p>
+            {% endif %}
+
+            {% if qr_image %}
+                <section class="result">
+                    <div class="qr-frame">
+                        <img src="data:image/png;base64,{{ qr_image }}" alt="QR code for {{ qr_target_url }}">
+                    </div>
+                    <p class="link"><strong>QR link:</strong> {{ qr_target_url }}</p>
+                    <p class="link"><strong>Destination:</strong> {{ final_url }}</p>
+                    <a
+                        class="download"
+                        href="data:image/png;base64,{{ qr_image }}"
+                        download="qr-code.png"
+                    >
+                        Download PNG
+                    </a>
+                </section>
+            {% endif %}
+        </main>
+    </div>
+    <script>
+        const utmToggle = document.getElementById("utm_enabled");
+        const utmFields = document.getElementById("utm-fields");
+        const utmInputs = utmFields.querySelectorAll("input");
+
+        function syncUtmVisibility() {
+            const enabled = utmToggle.checked;
+            utmFields.hidden = !enabled;
+
+            for (const input of utmInputs) {
+                input.disabled = !enabled;
+            }
+        }
+
+        utmToggle.addEventListener("change", syncUtmVisibility);
+        syncUtmVisibility();
+    </script>
+</body>
+</html>
