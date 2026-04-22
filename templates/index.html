@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Link to QR</title>
+    <title>QR Generator</title>
     <style>
         :root {
             color-scheme: light;
@@ -13,6 +13,7 @@
             --accent: #0f766e;
             --accent-dark: #115e59;
             --line: #d6cfc1;
+            --muted: #4b5563;
         }
 
         * {
@@ -31,24 +32,8 @@
         }
 
         .shell {
-            width: min(680px, 100%);
+            width: min(900px, 100%);
             margin: 0 auto;
-        }
-
-        .topbar {
-            display: flex;
-            justify-content: flex-end;
-            margin-bottom: 14px;
-        }
-
-        .nav-link {
-            color: var(--accent);
-            text-decoration: none;
-            font-size: 0.98rem;
-        }
-
-        .nav-link:hover {
-            color: var(--accent-dark);
         }
 
         .card {
@@ -89,8 +74,8 @@
             accent-color: var(--accent);
         }
 
-        input[type="url"],
-        input[type="text"] {
+        input[type="text"],
+        textarea {
             width: 100%;
             padding: 14px 16px;
             border: 1px solid var(--line);
@@ -98,6 +83,11 @@
             font: inherit;
             font-size: 1rem;
             background: #fff;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
         }
 
         .utm-fields {
@@ -125,7 +115,7 @@
         .hint {
             margin: 0;
             font-size: 0.92rem;
-            color: #4b5563;
+            color: var(--muted);
         }
 
         button,
@@ -157,13 +147,22 @@
             margin-top: 8px;
         }
 
-        .result {
+        .result,
+        .variant-results {
             margin-top: 22px;
             padding-top: 18px;
             border-top: 1px solid var(--line);
+        }
+
+        .result {
             display: grid;
             gap: 12px;
             justify-items: start;
+        }
+
+        .variant-results {
+            display: grid;
+            gap: 14px;
         }
 
         .qr-frame {
@@ -179,20 +178,38 @@
             height: auto;
         }
 
+        .variant-grid {
+            display: grid;
+            gap: 14px;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }
+
+        .variant-card {
+            display: grid;
+            gap: 10px;
+            padding: 18px;
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.72);
+        }
+
+        .variant-card h2 {
+            margin: 0;
+            font-size: 1.05rem;
+        }
+
         .link {
+            margin: 0;
             word-break: break-word;
         }
+
     </style>
 </head>
 <body>
     <div class="shell">
-        <div class="topbar">
-            <a class="nav-link" href="{{ url_for('analytics') }}">View Analytics</a>
-        </div>
-
         <main class="card">
-            <h1>Link to QR</h1>
-            <p>Paste a link below to generate a direct QR code or switch on UTM tracking to create a tracked-link QR code.</p>
+            <h1>QR Generator</h1>
+            <p>Generate a single QR code for any link, or switch on UTM mode to create a batch of tagged links with optional QR codes for each one.</p>
 
             <form method="post">
                 <input
@@ -202,38 +219,19 @@
                     value="{{ url }}"
                     required
                 >
-                <label class="toggle-row" for="utm_enabled">
+
+                <label class="toggle-row" for="generate_utm_set">
                     <input
                         type="checkbox"
-                        id="utm_enabled"
-                        name="utm_enabled"
-                        {% if utm_enabled %}checked{% endif %}
+                        id="generate_utm_set"
+                        name="generate_utm_set"
+                        {% if generate_utm_set %}checked{% endif %}
                     >
-                    Enable UTM tracking
+                    Generate a UTM link set
                 </label>
 
-                <div class="utm-fields" id="utm-fields" {% if not utm_enabled %}hidden{% endif %}>
-                    <p class="hint">Add tracking fields to generate a tracked version of the link before creating the QR code.</p>
-
-                    <div class="field-group">
-                        <label for="utm_source">UTM Source</label>
-                        <input
-                            type="text"
-                            id="utm_source"
-                            name="utm_source"
-                            value="{{ utm_source }}"
-                        >
-                    </div>
-
-                    <div class="field-group">
-                        <label for="utm_medium">UTM Medium</label>
-                        <input
-                            type="text"
-                            id="utm_medium"
-                            name="utm_medium"
-                            value="{{ utm_medium }}"
-                        >
-                    </div>
+                <div class="utm-fields" id="utm-fields" {% if not generate_utm_set %}hidden{% endif %}>
+                    <p class="hint">Enter one variant per line as <code>source,medium</code>. The app will append the shared campaign value to each one.</p>
 
                     <div class="field-group">
                         <label for="utm_campaign">UTM Campaign</label>
@@ -245,37 +243,83 @@
                             value="{{ utm_campaign }}"
                         >
                     </div>
+
+                    <div class="field-group">
+                        <label for="utm_variants">UTM Variants</label>
+                        <textarea
+                            id="utm_variants"
+                            name="utm_variants"
+                            spellcheck="false"
+                        >{{ utm_variants }}</textarea>
+                    </div>
+
+                    <label class="toggle-row" for="generate_variant_qrs">
+                        <input
+                            type="checkbox"
+                            id="generate_variant_qrs"
+                            name="generate_variant_qrs"
+                            {% if generate_variant_qrs %}checked{% endif %}
+                        >
+                        Generate QR codes for each UTM link
+                    </label>
                 </div>
 
-                <button type="submit">Generate QR Code</button>
+                <button type="submit">Generate</button>
             </form>
 
             {% if error %}
                 <p class="error">{{ error }}</p>
             {% endif %}
 
-            {% if qr_image %}
+            {% if single_qr_image %}
                 <section class="result">
                     <div class="qr-frame">
-                        <img src="data:image/png;base64,{{ qr_image }}" alt="QR code for {{ qr_target_url }}">
+                        <img src="data:image/png;base64,{{ single_qr_image }}" alt="QR code for {{ url }}">
                     </div>
-                    <p class="link"><strong>QR link:</strong> {{ qr_target_url }}</p>
-                    <p class="link"><strong>Destination:</strong> {{ final_url }}</p>
+                    <p class="link"><strong>Link:</strong> {{ url }}</p>
                     <a
                         class="download"
-                        href="data:image/png;base64,{{ qr_image }}"
+                        href="data:image/png;base64,{{ single_qr_image }}"
                         download="qr-code.png"
                     >
                         Download PNG
                     </a>
                 </section>
             {% endif %}
+
+            {% if generated_variants %}
+                <section class="variant-results">
+                    <p class="hint">Generated {{ generated_variants|length }} UTM link{% if generated_variants|length != 1 %}s{% endif %} from {{ url }}.</p>
+
+                    <div class="variant-grid">
+                        {% for variant in generated_variants %}
+                            <article class="variant-card">
+                                <h2>{{ variant.label }}</h2>
+                                <p class="link"><strong>UTM Link:</strong> {{ variant.url }}</p>
+
+                                {% if variant.qr_image %}
+                                    <div class="qr-frame">
+                                        <img src="data:image/png;base64,{{ variant.qr_image }}" alt="QR code for {{ variant.url }}">
+                                    </div>
+                                    <a
+                                        class="download"
+                                        href="data:image/png;base64,{{ variant.qr_image }}"
+                                        download="{{ variant.source }}-{{ variant.medium }}-qr.png"
+                                    >
+                                        Download PNG
+                                    </a>
+                                {% endif %}
+                            </article>
+                        {% endfor %}
+                    </div>
+                </section>
+            {% endif %}
         </main>
     </div>
     <script>
-        const utmToggle = document.getElementById("utm_enabled");
+        const utmToggle = document.getElementById("generate_utm_set");
         const utmFields = document.getElementById("utm-fields");
-        const utmInputs = utmFields.querySelectorAll("input");
+        const utmInputs = utmFields.querySelectorAll("input, textarea");
 
         function syncUtmVisibility() {
             const enabled = utmToggle.checked;
